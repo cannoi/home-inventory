@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Inventory - Quản lý tài sản</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>.paf-made-by{position:fixed;right:8px;bottom:8px;width:min(72px,12vw);max-width:12vw;height:auto;object-fit:contain;opacity:.5;background:transparent;padding:0;border:0;box-shadow:none;filter:none;pointer-events:none;z-index:30}</style></head>
+<body class="bg-gray-100 min-h-screen pb-12">
+  <div class="container mx-auto px-4 py-8">
+    <header class="mb-8 flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-800">Home Inventory</h1>
+        <p class="text-gray-600">Quản lý tài sản và đồ đạc trong nhà dễ dàng</p>
+      </div>
+      <button onclick="openModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition">+ Thêm tài sản</button>
+    </header>
+
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên..." class="border rounded-lg px-4 py-2" oninput="filterItems()">
+        <select id="categoryFilter" class="border rounded-lg px-4 py-2" onchange="filterItems()">
+          <option value="">Tất cả danh mục</option>
+          <option value="Điện tử">Điện tử</option>
+          <option value="Nội thất">Nội thất</option>
+          <option value="Gia dụng">Gia dụng</option>
+          <option value="Khác">Khác</option>
+        </select>
+        <div class="text-right text-gray-600 flex items-center justify-end font-semibold">
+          Tổng giá trị: <span id="totalVal" class="text-blue-600 ml-2">0 đ</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    </div>
+  </div>
+
+  <!-- Modal Thêm -->
+  <div id="itemModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+      <h2 class="text-xl font-bold mb-4">Thêm tài sản mới</h2>
+      <form id="itemForm" onsubmit="saveItem(event)">
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-1">Tên tài sản</label>
+          <input type="text" id="name" required class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-gray-700 mb-1">Danh mục</label>
+            <select id="category" class="w-full border rounded-lg px-3 py-2">
+              <option value="Điện tử">Điện tử</option>
+              <option value="Nội thất">Nội thất</option>
+              <option value="Gia dụng">Gia dụng</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-1">Vị trí</label>
+            <input type="text" id="location" class="w-full border rounded-lg px-3 py-2">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-gray-700 mb-1">Số lượng</label>
+            <input type="number" id="quantity" value="1" min="1" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-1">Giá trị (đ)</label>
+            <input type="number" id="price" value="0" min="0" class="w-full border rounded-lg px-3 py-2">
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-1">Ngày mua</label>
+          <input type="date" id="purchaseDate" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-1">Ghi chú</label>
+          <textarea id="notes" class="w-full border rounded-lg px-3 py-2"></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-1">Ảnh</label>
+          <input type="file" id="imageFile" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="closeModal()" class="bg-gray-300 px-4 py-2 rounded-lg">Hủy</button>
+          <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="paf-made-by fixed bottom-2 right-2 text-xs bg-white px-2 py-1 rounded shadow text-gray-500">
+    Made with App Builder — Pi SoloHost
+  </div>
+
+  <script>
+    let allItems = [];
+
+    async function loadItems() {
+      const res = await fetch('/api/items');
+      allItems = await res.json();
+      renderItems(allItems);
+    }
+
+    function renderItems(items) {
+      const grid = document.getElementById('itemsGrid');
+      grid.innerHTML = '';
+      let total = 0;
+
+      items.forEach(item => {
+        total += (item.price || 0) * (item.quantity || 1);
+        const div = document.createElement('div');
+        div.className = 'bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between';
+        div.innerHTML = `
+          <div>
+            ${item.image ? `<img src="${item.image}" class="w-full h-48 object-cover">` : '<div class="w-full h-48 bg-gray-200 flex items-center justify-center text-gray-400">Không có ảnh</div>'}
+            <div class="p-4">
+              <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-semibold">${item.category}</span>
+              <h3 class="text-lg font-bold text-gray-800 mt-2">${item.name}</h3>
+              <p class="text-sm text-gray-600">📍 ${item.location || 'Chưa rõ vị trí'}</p>
+              <p class="text-sm text-gray-600 mt-1">Số lượng: <b>${item.quantity}</b> | Giá: <b>${(item.price || 0).toLocaleString()} đ</b></p>
+              ${item.notes ? `<p class="text-xs text-gray-500 mt-2 italic">${item.notes}</p>` : ''}
+            </div>
+          </div>
+          <div class="p-4 bg-gray-50 flex justify-between items-center border-t">
+            <span class="text-xs text-gray-400">${item.purchaseDate || ''}</span>
+            <button onclick="deleteItem(${item.id})" class="text-red-600 text-sm hover:underline">Xóa</button>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+
+      document.getElementById('totalVal').innerText = total.toLocaleString() + ' đ';
+    }
+
+    function filterItems() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const cat = document.getElementById('categoryFilter').value;
+      const filtered = allItems.filter(item => {
+        const matchName = item.name.toLowerCase().includes(keyword);
+        const matchCat = !cat || item.category === cat;
+        return matchName && matchCat;
+      });
+      renderItems(filtered);
+    }
+
+    function openModal() {
+      document.getElementById('itemModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('itemModal').classList.add('hidden');
+    }
+
+    async function saveItem(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('name', document.getElementById('name').value);
+      formData.append('category', document.getElementById('category').value);
+      formData.append('location', document.getElementById('location').value);
+      formData.append('quantity', document.getElementById('quantity').value);
+      formData.append('price', document.getElementById('price').value);
+      formData.append('purchaseDate', document.getElementById('purchaseDate').value);
+      formData.append('notes', document.getElementById('notes').value);
+      const file = document.getElementById('imageFile').files[0];
+      if (file) formData.append('image', file);
+
+      await fetch('/api/items', {
+        method: 'POST',
+        body: formData
+      });
+      closeModal();
+      document.getElementById('itemForm').reset();
+      loadItems();
+    }
+
+    async function deleteItem(id) {
+      if (confirm('Bạn có chắc chắn muốn xóa tài sản này?')) {
+        await fetch(`/api/items/${id}`, { method: 'DELETE' });
+        loadItems();
+      } 
+    }
+
+    loadItems();
+  </script>
+<img class="paf-made-by" src="/made-by.png" alt="Made with App Builder — Pi SoloHost"></body>
+</html>

@@ -1,0 +1,7 @@
+title: "Home Inventory"
+eyebrow: SoloHost App
+description: "Tạo cho tôi ứng dụng: Home Inventory     ứng dụng quản lý tài sản trong nhà, lưu tên đồ vật, hình ảnh, giá trị, vị trí và thông tin bảo hành."
+footer_hint: Ready to run on Pi Desktop SoloHost.
+output_file: .env
+after_save: Saved. Start the app from SoloHost.
+fields: []
